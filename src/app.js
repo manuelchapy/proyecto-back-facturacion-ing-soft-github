@@ -19,6 +19,8 @@ app.use(session({
 }));
 
 app.use(require('../src/routes/facturacion'))
+app.use(require('../src/routes/clientes'))
+app.use(require('../src/routes/pacientes'))
 
 //static files
 //app.use('/public',express.static(path.join(__dirname, '../public')));
