@@ -1037,6 +1037,7 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
 
 facturacionCtrl.index = async(req, res) =>{
     console.log("api healthcheck")
+    res.send("api healthCheck")
 }
 
 module.exports = facturacionCtrl;
