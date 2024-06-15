@@ -1,0 +1,46 @@
+{
+  "name": "modulo de facturacion",
+  "version": "1.0.0",
+  "description": "api del sistema de control de datos de facturacion",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run index.js",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "keywords": [
+    "24781279"
+  ],
+  "author": "grupo para ingenieria de software",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^3.2.3",
+    "axios": "^0.21.4",
+    "bwip-js": "^3.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "express-session": "^1.17.2",
+    "jsbarcode": "^3.11.5",
+    "jsonwebtoken": "^8.5.1",
+    "keygenerator": "^1.0.4",
+    "moment": "^2.29.3",
+    "moment-timezone": "^0.5.33",
+    "mongoose": "^6.8.0",
+    "mysql": "^2.18.1",
+    "node-cron": "^3.0.0",
+    "node-fetch": "^3.2.10",
+    "os": "^0.1.2",
+    "path": "^0.12.7",
+    "pkg": "^5.8.1",
+    "qrcode": "^1.5.1",
+    "qz-tray": "^2.2.1",
+    "random-integer": "^2.0.0",
+    "uniqid": "^5.4.0",
+    "unique-keygen": "^1.1.6"
+  },
+  "devDependencies": {
+    "@types/mongoose": "^5.11.97",
+    "nodemon": "^2.0.12"
+  }
+}
