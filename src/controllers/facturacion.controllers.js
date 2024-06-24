@@ -3,6 +3,7 @@ const connection = require('../database');
 const uniqid = require('uniqid');
 const config = require('../config');
 const axios = require('axios').default;
+const os = require('os');
 
 facturacionCtrl.facturas = async(req, res) =>{
     const sql = "SELECT tbl_factura.id_factura, tbl_factura.id_estado_factura, date_format(fecha_cancelacion, '%d-%m-%Y %T') AS fecha_cancelacion ,date_format(fecha_creacion_factura, '%d-%m-%Y %T') AS fecha_creacion_factura, date_format(fecha_creacion_orden_trabajo, '%d-%m-%Y %T') AS fecha_creacion_orden_trabajo, tbl_factura.id_cliente, tbl_factura.id_tipo_factura, tbl_factura.id_usuario, tbl_factura.numero_factura, tbl_factura.orden_trabajo, tbl_cliente.cliente_nombre, tbl_cliente.cliente_apellido, tbl_cliente.cedula_RIF, tbl_usuario.usuario_nombre, tbl_usuario.usuario_apellido, tbl_estado_factura.nombre, tbl_tipo_factura.tipo_factura_nombre FROM `tbl_factura` LEFT JOIN tbl_cliente ON tbl_cliente.id_cliente = tbl_factura.id_cliente LEFT JOIN tbl_usuario ON tbl_usuario.id_usuario = tbl_factura.id_usuario LEFT JOIN tbl_estado_factura ON tbl_estado_factura.id_estado_factura = tbl_factura.id_estado_factura LEFT JOIN tbl_tipo_factura ON tbl_factura.id_tipo_factura = tbl_tipo_factura.id_tipo_factura WHERE numero_factura > 0 AND (tbl_factura.id_estado_factura = 1 OR tbl_factura.id_estado_factura = 2)";
@@ -1886,11 +1887,14 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
 
             ipNormal = ipNormal.split(":");
             ipDef = ipNormal[3];
+            ipServer = getServerIp()
+            let ipUso = `http://${ipServer}:${3000}/ordenesImpresion/`+factura
+            console.log("------------------", ipServer)
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", ipSocket);
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", ipNormal);
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", req);
                     //http://localhost:3000/ordenesImpresion
-            axios.get('http://localhost:3000/ordenesImpresion/'+factura)
+            axios.get(ipUso)
             .then(function (response) {
                 imprimirFacturaOrdenes(response.data)
             })
@@ -1898,8 +1902,9 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
             function imprimirFacturaOrdenes(respOrdenes){
                 //console.log("JAJAJAJAJAJAJAJAJAJAJAJAJAJAJAJJAJAJAJAJAA", respOrdenes);
                 let numOrdenes = respOrdenes.length;
+                res.redirect('/imprimirFactura/'+factura+'/'+req.body.id_tipo_factura)
                 //'http://'+ipDef+':5000/impresion'
-                axios.post('http://'+ipDef+':5000/impresion',{
+                /*axios.post('http://'+ipDef+':5000/impresion',{
                 ordenes: respOrdenes,
                 numero_impresiones: numOrdenes,
                 id_factura: factura
@@ -1914,10 +1919,21 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
                     //console.log(error);
                     //console.log("OJOJOJOJOJOJOJJOJOJOJOJOJOJO")
                     res.redirect('/imprimirFactura/'+factura+'/'+req.body.id_tipo_factura)
-                  })
+                  })*/
             }
         //res.redirect('/imprimirFactura/'+factura+'/'+req.body.id_tipo_factura);
     }
+    function getServerIp() {
+        const interfaces = os.networkInterfaces();
+        for (const name of Object.keys(interfaces)) {
+          for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+              return iface.address;
+            }
+          }
+        }
+        return '127.0.0.1'; // Fallback to localhost if no external IP found
+      }
     
 }
 
