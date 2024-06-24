@@ -23,6 +23,10 @@ app.use(require('../src/routes/clientes'))
 app.use(require('../src/routes/pacientes'))
 app.use(require('../src/routes/examenes'))
 app.use(require('../src/routes/cultivos'))
+app.use(require('../src/routes/divisa'))
+app.use(require('../src/routes/documentos'))
+app.use(require('../src/routes/bancos'))
+app.use(require('../src/routes/tiposDePago'))
 //static files
 //app.use('/public',express.static(path.join(__dirname, '../public')));
 

@@ -1,5 +1,8 @@
 const facturacionCtrl = {};
 const connection = require('../database');
+const uniqid = require('uniqid');
+const config = require('../config');
+const axios = require('axios').default;
 
 facturacionCtrl.facturas = async(req, res) =>{
     const sql = "SELECT tbl_factura.id_factura, tbl_factura.id_estado_factura, date_format(fecha_cancelacion, '%d-%m-%Y %T') AS fecha_cancelacion ,date_format(fecha_creacion_factura, '%d-%m-%Y %T') AS fecha_creacion_factura, date_format(fecha_creacion_orden_trabajo, '%d-%m-%Y %T') AS fecha_creacion_orden_trabajo, tbl_factura.id_cliente, tbl_factura.id_tipo_factura, tbl_factura.id_usuario, tbl_factura.numero_factura, tbl_factura.orden_trabajo, tbl_cliente.cliente_nombre, tbl_cliente.cliente_apellido, tbl_cliente.cedula_RIF, tbl_usuario.usuario_nombre, tbl_usuario.usuario_apellido, tbl_estado_factura.nombre, tbl_tipo_factura.tipo_factura_nombre FROM `tbl_factura` LEFT JOIN tbl_cliente ON tbl_cliente.id_cliente = tbl_factura.id_cliente LEFT JOIN tbl_usuario ON tbl_usuario.id_usuario = tbl_factura.id_usuario LEFT JOIN tbl_estado_factura ON tbl_estado_factura.id_estado_factura = tbl_factura.id_estado_factura LEFT JOIN tbl_tipo_factura ON tbl_factura.id_tipo_factura = tbl_tipo_factura.id_tipo_factura WHERE numero_factura > 0 AND (tbl_factura.id_estado_factura = 1 OR tbl_factura.id_estado_factura = 2)";
@@ -13,6 +16,712 @@ facturacionCtrl.facturas = async(req, res) =>{
             res.send(result)
         }
     });
+}
+
+facturacionCtrl.ordenesImpresion = async(req, res) =>{
+
+    let ordenes;
+
+    ordenes = await configOrdenesImpresion();
+    //console.log("LOOLOLOLOLOLOLOLOLOLOLOLOLOLOLOL", ordenes)
+    res.send(ordenes);
+    async function configOrdenesImpresion(){
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_detalle_factura_paciente.id_paciente, tbl_detalle_factura_paciente.id_examen, tbl_detalle_factura_paciente.id_cultivo, tbl_detalle_orden.id_orden, tbl_orden.numero_orden, tbl_paciente.paciente_nombre, tbl_paciente.paciente_apellido, tbl_paciente.paciente_cedula, tbl_paciente.edad, tbl_examen.id_departamento, tbl_departamento.departamento_nombre FROM `tbl_detalle_factura_paciente`  LEFT JOIN `tbl_detalle_orden` ON tbl_detalle_orden.id_detalle_factura_paciente = tbl_detalle_factura_paciente.id_detalle_factura_paciente LEFT JOIN tbl_orden ON tbl_detalle_orden.id_orden = tbl_orden.id_orden LEFT JOIN tbl_paciente ON tbl_detalle_factura_paciente.id_paciente = tbl_paciente.id_paciente LEFT JOIN tbl_examen ON tbl_examen.id_examen = tbl_detalle_factura_paciente.id_examen LEFT JOIN tbl_departamento ON tbl_departamento.id_departamento = tbl_examen.id_departamento LEFT JOIN tbl_cultivo ON tbl_cultivo.id_cultivo = tbl_detalle_factura_paciente.id_cultivo WHERE tbl_detalle_factura_paciente.id_factura='" +req.params.id_factura+"'";
+            connection.query(sql, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate', err);
+                    res.send('3');
+                }
+                if(result){
+                    //console.log('PASO A RESULT!')
+                    //return result;
+                    //res.send(result);
+                    //console.log('EL RESULT!', result);
+                    let i=0;
+                    let j=0;
+                    let contador = 0;
+                    let primario = 0;
+                    let ordenPos = 0;
+                    let nombre;
+                    let cedula;
+                    let idOrden = 0;
+                    let reqImpresion = [];
+                    let examen = [];
+                    let cultivo = [];
+                    let orden = [];
+                    const resultAux = result;
+                    //resultAux 
+                    //console.log("[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[", resultAux)
+
+                    for(let i=0; i<result.length;i++){
+                        contador = 0;
+                        if(result[i].id_examen != null){
+                            primario = result[i].id_examen;
+                            //console.log('VALOR DE PRIMARIO', primario)
+                            for(let j=0; j<result.length;j++){
+                                if(primario==result[j].id_examen ){
+                                    //console.log('SUMA');
+                                    result[j].id_examen = null;
+                                    //console.log(result[j].id_ex)
+                                    contador++;
+                                }
+                            }
+                            examen.push({
+                                id_examen: primario,
+                                contador: contador,
+                            });
+                            //console.log('CONTADOR SUMADO!', contador);
+                        } else if(result[i].id_cultivo != null){
+                            primario = result[i].id_cultivo;
+                            //console.log('VALOR DE PRIMARIO', primario)
+                            for(let j=0; j<result.length;j++){
+                                if(primario==result[j].id_cultivo ){
+                                    //console.log('SUMA');
+                                    result[j].id_cultivo = null;
+                                    //console.log(result[j].id_ex)
+                                    contador++;
+                                }
+                            }
+                            //console.log('CONTADOR SUMADO!', contador);
+                            cultivo.push({
+                                id_cultivo: primario,
+                                contador: contador,
+                            });
+                        }
+                    }
+                    for(let i=0; i<result.length;i++){
+                        //contador = 0;
+                        if(result[i].id_orden != null){
+                            ordenPos = result[i].numero_orden;
+                            idOrden = result[i].id_orden;
+                            cedula = result[i].paciente_cedula;
+                            nombre = result[i].paciente_nombre +" "+result[i].paciente_apellido;
+                            edad = result[i].edad
+                            //console.log('VALOR DE ordenPos', ordenPos)
+                            for(let j=0; j<result.length;j++){
+                                if(ordenPos==result[j].numero_orden){
+                                    //console.log('SUMA');
+                                    result[j].id_orden = null;
+                                    //console.log(result[j].id_ex)
+                                    contador++;
+                                }
+                            }
+                            orden.push({
+                                orden_numero: ordenPos,
+                                id_orden: idOrden,
+                                paciente_cedula: cedula,
+                                paciente_nombre: nombre,
+                                paciente_edad: edad,
+                                departamentos: []
+                                //contador: contador,
+                            });
+                        }
+                    }
+                    /*reqImpresion.push({
+                        orden
+                    })*/
+                    //console.log('EL RESULT!', reqFactura)
+                    //console.log("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ", orden)
+                    let auxNombre;
+                    for(itemOrden of orden){
+                        for(item of resultAux){
+                            auxNombre = item.paciente_nombre +" "+item.paciente_apellido;
+                            if(itemOrden.paciente_nombre == auxNombre){
+                                let mod = 0;
+                                //console.log("PA VE LOS NOMBRES", itemOrden.paciente_nombre, auxNombre, item.id_examen, item.id_departamento)
+                                for(departamento of itemOrden.departamentos){
+                                    if(departamento.id_departamento == item.id_departamento){
+                                        mod = 1
+                                    }
+                                }
+                                if(mod == 0){
+                                    if(item.id_departamento == null){
+                                        itemOrden.departamentos.push({
+                                            id_departamento: 4,
+                                            departamento_nombre: "BACTERIOLOGIA"
+                                        })
+                                    }else{
+                                        itemOrden.departamentos.push({
+                                            id_departamento: item.id_departamento,
+                                            departamento_nombre: item.departamento_nombre
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let copias = 0;
+                    let depStr = ''
+                    for(item of orden){
+                        copias = 0;
+                        for(departamento of item.departamentos){
+                            //console.log("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", departamento)
+                            if(departamento.id_departamento == 6 || departamento.id_departamento == 2){
+                                copias = copias + 2
+                            }else{
+                                copias = copias + 1
+                            }
+                            item.copias = copias;
+                        }
+                    }
+                    resolve(orden)
+                }
+            });
+        });
+    }
+}
+
+facturacionCtrl.imprimirFactura = async(req, res) =>{
+    const sql = "SELECT tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_detalle_factura_paciente.id_paciente, tbl_detalle_factura_paciente.id_examen, tbl_detalle_factura_paciente.id_cultivo, tbl_detalle_orden.id_orden, tbl_orden.numero_orden FROM `tbl_detalle_factura_paciente`  INNER JOIN `tbl_detalle_orden` ON tbl_detalle_orden.id_detalle_factura_paciente = tbl_detalle_factura_paciente.id_detalle_factura_paciente INNER JOIN tbl_orden ON tbl_orden.id_orden = tbl_detalle_orden.id_orden WHERE tbl_detalle_factura_paciente.id_factura='" +req.params.id_factura+"'";
+    connection.query(sql, function (err, result, fields) {
+        if (err) {
+            console.log('ERROR en CheckTemplate 100', err);
+            res.send('3');
+        }
+        if(result){
+            //console.log('PASO A RESULT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', result)
+                //return result;
+                //res.send(result);
+                //console.log('EL RESULT!', result);
+                let i=0;
+                let j=0;
+                let contador = 0;
+                let primario = 0;
+                let precio = 0;
+                let ordenPos = 0;
+                let reqFactura = [];
+                let examen = [];
+                let cultivo = [];
+                let orden = [];
+
+                for(let i=0; i<result.length;i++){
+                    contador = 0;
+                    if(result[i].id_examen != null){
+                        primario = result[i].id_examen;
+                        precio = result[i].precio;
+                        //console.log('VALOR DE PRIMARIO', primario)
+                        for(let j=0; j<result.length;j++){
+                            if(primario==result[j].id_examen ){
+                                //console.log('SUMA');
+                                result[j].id_examen = null;
+                                //console.log(result[j].id_ex)
+                                contador++;
+                            }
+                        }
+                        examen.push({
+                            id_examen: primario,
+                            precio: precio,
+                            contador: contador,
+                        });
+                        //console.log('CONTADOR SUMADO!', contador);
+                    } else if(result[i].id_cultivo != null){
+                        primario = result[i].id_cultivo;
+                        precio = result[i].precio;
+                        //console.log('VALOR DE PRIMARIO', primario)
+                        for(let j=0; j<result.length;j++){
+                            if(primario==result[j].id_cultivo ){
+                                //console.log('SUMA');
+                                result[j].id_cultivo = null;
+                                //console.log(result[j].id_ex)
+                                contador++;
+                            }
+                        }
+                        //console.log('CONTADOR SUMADO!', contador);
+                        cultivo.push({
+                            id_cultivo: primario,
+                            precio: precio,
+                            contador: contador,
+                        });
+                    }
+                }
+                for(let i=0; i<result.length;i++){
+                    //contador = 0;
+                    if(result[i].id_orden != null){
+                        ordenPos = result[i].numero_orden;
+                        //console.log('VALOR DE ordenPos', ordenPos)
+                        for(let j=0; j<result.length;j++){
+                            if(ordenPos==result[j].numero_orden){
+                                //console.log('SUMA');
+                                result[j].id_orden = null;
+                                //console.log(result[j].id_ex)
+                                contador++;
+                            }
+                        }
+                        orden.push({
+                            orden_numero: ordenPos,
+                            //contador: contador,
+                        });
+                    }
+                }
+                reqFactura.push({
+                    examenes: examen,
+                    cultivos: cultivo,
+                    ordenes: orden
+                })
+                console.log('EL RESULT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', reqFactura.ordenes)
+                buscarPreciosNombres(reqFactura)
+        }
+    });
+
+    function buscarPreciosNombres(reqFactura){
+        //console.log('DESDE BUSCAR PRECIOS NOMBRES', reqFactura)
+        var async = require('async');
+        let impresion = [];
+        let examenes = reqFactura[0].examenes;
+        let cultivos = reqFactura[0].cultivos;
+        let sqlExamenes;
+        let sqlCultivos;
+        let itemsFinal = [];
+        //console.log('DESDE BUSCAR PRECIOS NOMBRES', examenes, cultivos)
+
+        async function getExamenes(item){
+            return new Promise((resolve, reject) => {
+                sqlExamenes = "SELECT examen_nombre, examen_precio FROM tbl_examen WHERE id_examen='" +item.id_examen+"'";
+                connection.query(sqlExamenes, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate 200', err);
+                    res.send('3');
+                }
+                if(result){
+                    //console.log(result)
+                    item.nombre = result[0].examen_nombre;
+                    item.precio = result[0].examen_precio;
+                    item.subtotal = item.contador * item.precio;
+                    //item.subtotal = Number(Math.round(item.subtotal + "e2") + "e-2")
+                    itemsFinal.push({
+                        item: item
+                    })
+                    //examenesFinal = examen;
+                    resolve(itemsFinal)
+                    //console.log('-----------',examenesFinal);
+                }
+            });
+            });
+        }
+
+        async function getCultivos(item){
+            return new Promise((resolve, reject) => {
+                    sqlCultivos = "SELECT cultivo_nombre, cultivo_precio FROM tbl_cultivo WHERE id_cultivo='" +item.id_cultivo+"'";
+                    connection.query(sqlCultivos, function (err, result, fields) {
+                    if (err) {
+                        console.log('ERROR en CheckTemplate 300', err);
+                        res.send('3');
+                    }
+                    if(result){
+                        //console.log('!!!!!!!!',result)
+                        item.nombre = result[0].cultivo_nombre;
+                        item.precio = result[0].cultivo_precio;
+                        item.subtotal = item.contador * item.precio;
+                        //console.log(cultivo);
+                        itemsFinal.push({
+                            item: item
+                        })
+                        resolve(itemsFinal)
+                    }
+                });
+            });
+        }
+
+        async function getNumeroFactura(){
+            //console.log("LA CONSOLEASDA!!!", req.params.id_tipo_factura)
+            let registrosDePagos;
+                registrosDePagos = await getRegistroPagos(registrosDePagos);
+            return new Promise((resolve, reject) => {
+
+                //console.log("LA FACTURA!!!!", req.params.id_factura)
+                if(req.params.id_tipo_factura == 1 || req.params.id_tipo_factura == 2 || req.params.id_tipo_factura == 4){
+                    sqlNumFactura = "SELECT tbl_factura.numero_factura, tbl_factura.factura_qr, tbl_factura.total_dolares, tbl_factura.total_pesos, tbl_factura.total_bolivares, tbl_factura.tasa_bolivar_dia, tbl_factura.tasa_pesos_dia, tbl_factura.descuento_bolivares, tbl_factura.descuento_dolares, tbl_factura.descuento_pesos, tbl_factura.IGTF_bolivares, tbl_factura.IGTF_dolares, tbl_factura.IGTF_pesos, tbl_factura.orden_trabajo, date_format(fecha_creacion_factura,'%d-%m-%Y') AS fecha_creacion, date_format(fecha_creacion_orden_trabajo,'%d-%m-%Y T%') AS fecha_creacion_orden_trabajo, tbl_factura.id_cliente, tbl_cliente.cliente_nombre, tbl_cliente.cliente_apellido, tbl_cliente.cedula_RIF, tbl_cliente.contacto_persona_convenio, tbl_cliente.telefono, tbl_cliente.correo, tbl_cliente.id_tipo_cliente, tbl_factura.id_tipo_factura, tbl_tipo_factura.tipo_factura_nombre, tbl_factura.base_imponible_dolares, tbl_factura.base_imponible_bolivares, tbl_tipo_cliente.tipo_nombre FROM tbl_factura LEFT JOIN tbl_cliente ON tbl_factura.id_cliente = tbl_cliente.id_cliente LEFT JOIN tbl_tipo_factura ON tbl_tipo_factura.id_tipo_factura = tbl_factura.id_tipo_factura LEFT JOIN tbl_tipo_cliente ON tbl_tipo_cliente.id_tipo_cliente = tbl_cliente.id_tipo_cliente WHERE id_factura='" +req.params.id_factura+"'";
+                }else if(req.params.id_tipo_factura == 3 || req.params.id_tipo_factura == 5){
+                    sqlNumFactura = "SELECT tbl_factura.numero_factura, tbl_factura.factura_qr, tbl_factura.total_dolares, tbl_factura.total_pesos, tbl_factura.total_bolivares, tbl_factura.tasa_bolivar_dia, tbl_factura.tasa_pesos_dia, tbl_factura.descuento_bolivares, tbl_factura.descuento_dolares, tbl_factura.descuento_pesos, tbl_factura.IGTF_bolivares, tbl_factura.IGTF_dolares, tbl_factura.IGTF_pesos, tbl_factura.orden_trabajo, date_format(fecha_creacion_orden_trabajo,'%d-%m-%Y') AS fecha_creacion, date_format(fecha_creacion_orden_trabajo,'%d-%m-%Y T%') AS fecha_creacion_orden_trabajo, tbl_factura.id_cliente, tbl_cliente.cliente_nombre, tbl_cliente.cliente_apellido, tbl_cliente.cedula_RIF, tbl_cliente.contacto_persona_convenio, tbl_cliente.telefono, tbl_cliente.correo, tbl_cliente.id_tipo_cliente, tbl_factura.id_tipo_factura, tbl_tipo_factura.tipo_factura_nombre, tbl_factura.base_imponible_dolares, tbl_factura.base_imponible_bolivares, tbl_tipo_cliente.tipo_nombre FROM tbl_factura LEFT JOIN tbl_cliente ON tbl_factura.id_cliente = tbl_cliente.id_cliente LEFT JOIN tbl_tipo_factura ON tbl_factura.id_tipo_factura = tbl_tipo_factura.id_tipo_factura LEFT JOIN tbl_tipo_cliente ON tbl_tipo_cliente.id_tipo_cliente = tbl_cliente.id_tipo_cliente WHERE id_factura='" +req.params.id_factura+"'";
+                }
+                
+                connection.query(sqlNumFactura, registrosDePagos, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate 400', err);
+                    res.send('3');
+                }
+                if(result){
+                    //console.log("AAAAAAAAAAAAAAAAAAAAAAAAAA", registrosDePagos)
+                    //console.log("mmmmmmmmmmmmmmmmmmmmmmmm", result)
+                    let sumaPesos = 0;
+                    let sumaDolares = 0;
+                    let sumaBolivares = 0;
+                    let sumaPesosVueltos = 0;
+                    let sumaDolaresVueltos = 0;
+                    let sumaBolivaresVueltos = 0;
+                    //console.log('EN RESULT!!!!!!!!!!!!!!!!!!!!!!!!!!!', result)
+                    ////////////////////CONVERTIR PESOS A DOLARES////////////////////////
+                    for(const item of registrosDePagos){
+                        //console.log("CCCCCCCCCCCCCCCCCCCCCCCCCCCC", item.igtf_pago)
+                        /////////////////////////////////SUMATORIA DE PAGOS//////////////////////////////////
+                        if(item.divisa_nombre == "DOLARES" && item.igtf_pago == 0 && item.tipo_registro == 0){
+                            sumaDolares = sumaDolares + item.monto;
+                        }else if(item.divisa_nombre == "PESOS" && item.igtf_pago == 0 && item.tipo_registro == 0){
+                            sumaPesos = sumaPesos + item.monto
+                        }else if(item.divisa_nombre == "BOLIVARES" && item.igtf_pago == 0 && item.tipo_registro == 0){
+                        //console.log("!!!!!!", item.monto)
+                            sumaBolivares = sumaBolivares + item.monto;
+                        }   
+                        //////////////////////////////SUMATORIA DE VUELTOS//////////////////////////////////////
+                        if(item.divisa_nombre == "DOLARES" && item.igtf_pago == 0 && item.tipo_registro == 1){
+                            sumaDolaresVueltos = sumaDolaresVueltos + item.monto;
+                        }else if(item.divisa_nombre == "PESOS" && item.igtf_pago == 0 && item.tipo_registro == 1){
+                            sumaPesosVueltos = sumaPesosVueltos + item.monto
+                        }else if(item.divisa_nombre == "BOLIVARES" && item.igtf_pago == 0 && item.tipo_registro == 1){
+                        //console.log("!!!!!!", item.monto)
+                            sumaBolivaresVueltos = sumaBolivaresVueltos + item.monto;
+                        }   
+                    }
+                    let pesosConvertidos =  Number(Math.round(sumaPesos+ "e+2") + "e-2");
+                    let totalDolares;
+                    let dolaresRedondeado; //LA BASE IMPONIBLE EN IGTF
+                    let bolivaresRedondeado; //LA BASE IMPONIBLE EN IGTF
+                    let conversionDolarBolivar;
+                    sumaDolares = sumaDolares - sumaDolaresVueltos;
+                    sumaPesos = sumaPesos - sumaPesosVueltos;
+                    sumaBolivares = sumaBolivares - sumaBolivaresVueltos;
+                    totalDolares = pesosConvertidos + sumaDolares;
+
+                    //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", /*sumaDolares*/ totalDolares, sumaPesos);
+                    
+                    dolaresRedondeado = Number(Math.round(totalDolares+ "e+2") + "e-2");
+                    //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", /*sumaDolares*/ sumaBolivares);
+
+                    ///////////////////CONVIRTIENDO DOLARES//////////////////////////
+                    conversionDolarBolivar = (totalDolares * result[0].tasa_bolivar_dia)
+                    //totalBolivares = conversionDolarBolivar + sumaBolivares;
+                    bolivaresRedondeado = Number(Math.round(conversionDolarBolivar+ "e+2") + "e-2");
+                    //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", totalBolivares, bolivaresRedondeado);
+
+                    ///////////////////////
+                    let valor_total_venta_bolivares = result[0].total_bolivares - result[0].descuento_bolivares;
+                    let valor_total_venta_pesos = result[0].total_pesos - result[0].descuento_pesos;
+                    let valor_total_venta_dolares = result[0].total_dolares - result[0].descuento_dolares;
+                    let total_pagar_bolivares = Number(Math.round(valor_total_venta_bolivares + result[0].IGTF_bolivares+ "e+2") + "e-2");;
+                    let total_pagar_dolares = valor_total_venta_dolares + result[0].IGTF_dolares;
+                    let total_pagar_pesos = valor_total_venta_pesos + result[0].IGTF_pesos;
+
+                    impresion.push({
+                        numero_factura: result[0].numero_factura,
+                        orden_trabajo: result[0].orden_trabajo,
+                        fecha_creacion: result[0].fecha_creacion,
+                        fecha_creacion_orden_trabajo: result[0].fecha_creacion_orden_trabajo,
+                        id_cliente: result[0].id_cliente,
+                        cliente_nombre: result[0].cliente_nombre,
+                        cliente_apellido: result[0].cliente_apellido,
+                        cedula_RIF: result[0].cedula_RIF,
+                        contacto_persona_convenio: result[0].contacto_persona_convenio,
+                        telefono: result[0].telefono,
+                        tipo_cliente: result[0].tipo_nombre,
+                        id_tipo_cliente: result[0].id_tipo_cliente,
+                        correo: result[0].correo,
+                        telefono: result[0].telefono,
+                        tipo_factura_nombre: result[0].tipo_factura_nombre,
+                        id_factura: req.params.id_factura,
+                        total_bolivares: result[0].total_bolivares,
+                        total_dolares: result[0].total_dolares,
+                        total_pesos: result[0].total_pesos,
+                        descuento_dolares: result[0].descuento_dolares,
+                        descuento_bolivares: result[0].descuento_bolivares,
+                        descuento_pesos: result[0].descuento_pesos,
+                        valor_total_venta_bolivares: Number(Math.round(valor_total_venta_bolivares+ "e+2") + "e-2"),
+                        valor_total_venta_dolares: valor_total_venta_dolares,
+                        valor_total_venta_pesos: valor_total_venta_pesos,
+                        IGTF_bolivares: result[0].IGTF_bolivares,
+                        IGTF_pesos: result[0].IGTF_pesos,
+                        IGTF_dolares: result[0].IGTF_dolares,
+                        tasa_bolivar_dia: result[0].tasa_bolivar_dia,
+                        tasa_pesos_dia: result[0].tasa_pesos_dia,
+                        total_pagar_bolivares: total_pagar_bolivares,
+                        total_pagar_pesos: total_pagar_pesos,
+                        total_pagar_dolares: total_pagar_dolares,
+                        base_imponible_dolares: result[0].base_imponible_dolares,
+                        base_imponible_bolivares: result[0].base_imponible_bolivares,
+                        factura_qr: result[0].factura_qr
+                    });
+                    resolve(impresion);
+                }
+            });
+            })
+        }
+
+        async function getRegistroPagos(registroDePagos){
+            return new Promise((resolve, reject) => {
+                let sql = "SELECT tbl_registro_pago.id_registro_divisa, tbl_registro_pago.monto, tbl_registro_pago.igtf_pago, tbl_registro_divisa.id_divisa, tbl_registro_divisa.tasa_actual, tbl_divisa.divisa_nombre FROM tbl_registro_pago INNER JOIN tbl_registro_divisa ON tbl_registro_divisa.id_registro_divisa = tbl_registro_pago.id_registro_divisa INNER JOIN tbl_divisa ON tbl_registro_divisa.id_divisa = tbl_divisa.id_divisa WHERE id_factura='" +req.params.id_factura+"'";
+                connection.query(sql, function (err, result, fields) {
+                    if (err) {
+                        console.log('ERROR en CheckTemplate 500', err);
+                        res.send('3');
+                    }
+                    if(result){
+                        //console.log(result)
+                        registroDePagos = result;
+                        resolve(registroDePagos)
+                    }
+                });
+            })
+        }
+
+        async function getTipoPago(){
+            return new Promise((resolve, reject) => {
+                sqlNumFactura = "SELECT tbl_registro_pago.id_tipo_pago, tbl_tipo_pago.tipo_pago_nombre FROM tbl_registro_pago INNER JOIN `tbl_tipo_pago` ON tbl_registro_pago.id_tipo_pago = tbl_tipo_pago.id_tipo_pago WHERE id_factura='" +req.params.id_factura+"'";
+                connection.query(sqlNumFactura, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate 600', err);
+                    res.send('3');
+                }
+                if(result){
+                    
+                    let pago;
+                    let id_tipo_pago;
+                    let nombre_pago = [];
+                    for(let i=0; i<result.length; i++){
+                        if(result[i].id_tipo_pago != null){
+                            pago = result[i].tipo_pago_nombre;
+                            id_tipo_pago = result[i].id_tipo_pago;
+                            result[i].tipo_pago_nombre = null;
+                            result[i].id_tipo_pago = null;
+                            nombre_pago.push({
+                                nombre: pago
+                            })
+                        }
+                        //console.log(i);
+                        for(let j=0; j<result.length; j++){
+                            if(id_tipo_pago == result[j].id_tipo_pago){
+                                result[j].id_tipo_pago = null;
+                                result[j].tipo_pago_nombre = null;
+                            }
+                        }
+                    }
+                    //console.log('LOS NOMBRES DE LOS PAGOS', nombre_pago)
+                    //console.log('TIPO PAGO!!!!!!', result)
+                    impresion.push({
+                        pagos: nombre_pago
+                    })
+                    /*impresion.push({
+                        numero_factura: result[0].numero_factura,
+                        orden_trabajo: result[0].orden_trabajo,
+                        fecha_creacion: result[0].fecha_creacion,
+                        id_factura: req.params.id_factura
+                    });*/
+                    resolve(nombre_pago);
+                }
+            });
+            })
+        }
+
+        async function buscarCliente(idCliente){
+            return new Promise((resolve, reject) => {
+                let cliente;
+                cliente = clienteModel.findOne({idCliente: idCliente});
+                //console.log("RESULTADO", cliente)
+                resolve(cliente);
+            });
+        }
+
+        async function buscarFactura(idFactura){
+            return new Promise((resolve, reject) => {
+                let factura, bool;
+                factura = facturaModel.findOne({id_factura: idFactura});
+                //console.log("RESULTADO", factura)
+                resolve(factura);
+            })
+        }
+
+        async function buscarPacientes(idFactura){
+            return new Promise((resolve, reject) => {
+                let sql = "SELECT tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_detalle_factura_paciente.id_factura, tbl_detalle_factura_paciente.id_paciente, tbl_detalle_factura_paciente.id_examen, tbl_detalle_factura_paciente.id_cultivo, tbl_examen.examen_nombre, tbl_cultivo.cultivo_nombre, tbl_paciente.paciente_nombre, tbl_paciente.paciente_apellido, tbl_paciente.paciente_cedula, tbl_paciente.paciente_telefono FROM tbl_detalle_factura_paciente LEFT JOIN tbl_examen ON tbl_examen.id_examen = tbl_detalle_factura_paciente.id_examen LEFT JOIN tbl_cultivo ON tbl_cultivo.id_cultivo = tbl_detalle_factura_paciente.id_cultivo LEFT JOIN tbl_paciente ON tbl_paciente.id_paciente = tbl_detalle_factura_paciente.id_paciente WHERE tbl_detalle_factura_paciente.id_factura = '"+idFactura+"'";
+                connection.query(sql, function (err, result, fields) {
+                    if (err) {
+                        console.log('ERROR en CheckTemplate 700', err);
+                        res.send('3');
+                    }
+                    if(result){
+                       let pacientes;
+                       pacientes = result;
+                       resolve(pacientes);
+                    }
+                })
+            })
+        }
+
+        async function agruparPacientes(pacientesVar){
+            return new Promise((resolve, reject) => {
+                let agrupados = {};
+                //Recorremos el arreglo 
+                pacientesVar.forEach(item => {
+                //console.log("**************", item)
+                //Si la ciudad no existe en nuevoObjeto entonces
+                //la creamos e inicializamos el arreglo de profesionales. 
+                if(!agrupados.hasOwnProperty(item.id_paciente)){
+                    agrupados[item.id_paciente] = {
+                        id_paciente: item.id_paciente,
+                        paciente_nombre: item.paciente_nombre,
+                        paciente_apellido: item.paciente_apellido,
+                        paciente_cedula: item.paciente_cedula,
+                        paciente_telefono: item.paciente_telefono,
+                        examenes_cultivos: []
+                    }
+                }
+                //Agregamos los datos de profesionales. 
+                agrupados[item.id_paciente].examenes_cultivos.push({
+                        cultivo_nombre: item.cultivo_nombre,
+                        examen_nombre:  item.examen_nombre
+                    })
+                })
+                resolve(agrupados);
+            })
+        }
+
+        async function agregarFactura(impresion){
+            //console.log("/////////////////////////////////////////////////", impresion[0])
+            return new Promise((resolve, reject) => {
+                const factura = facturaModel({
+                    id_cliente:                   impresion[0].id_cliente,
+                    numero_factura:               impresion[0].numero_factura,
+                    orden_trabajo:                impresion[0].orden_trabajo,
+                    fecha_creacion:               impresion[0].fecha_creacion,
+                    fecha_creacion_orden_trabajo: impresion[0].fecha_creacion_orden_trabajo,
+                    cliente_nombre:               impresion[0].cliente_nombre,
+                    cliente_apellido:             impresion[0].cliente_apellido,
+                    cedula_RIF:                   impresion[0].cedula_RIF,
+                    contacto_persona_convenio:    impresion[0].contacto_persona_convenio,
+                    telefono:                     impresion[0].telefono,
+                    tipo_factura_nombre:          impresion[0].tipo_factura_nombre,
+                    id_factura:                   impresion[0].id_factura,
+                    total_bolivares:              impresion[0].total_bolivares,
+                    total_dolares:                impresion[0].total_dolares,
+                    total_pesos:                  impresion[0].total_pesos,
+                    descuento_dolares:            impresion[0].descuento_dolares,
+                    descuento_bolivares:          impresion[0].descuento_bolivares,
+                    descuento_pesos:              impresion[0].descuento_pesos,
+                    valor_total_venta_bolivares:  impresion[0].valor_total_venta_bolivares,
+                    valor_total_venta_dolares:    impresion[0].valor_total_venta_dolares,
+                    valor_total_venta_pesos:      impresion[0].valor_total_venta_pesos,
+                    IGTF_bolivares:               impresion[0].IGTF_bolivares,
+                    IGTF_pesos:                   impresion[0].IGTF_pesos,
+                    IGTF_dolares:                 impresion[0].IGTF_dolares,
+                    tasa_bolivar_dia:             impresion[0].tasa_bolivar_dia,
+                    tasa_pesos_dia:               impresion[0].tasa_pesos_dia,
+                    total_pagar_bolivares:        impresion[0].total_pagar_bolivares, 
+                    total_pagar_pesos:            impresion[0].total_pagar_pesos,
+                    total_pagar_dolares:          impresion[0].total_pagar_dolares,
+                    base_imponible_dolares:       impresion[0].base_imponible_dolares,
+                    base_imponible_bolivares:     impresion[0].base_imponible_bolivares,
+                    factura_qr:                   impresion[0].factura_qr,
+                    cantidad_items:               impresion[2].cantidad_items,
+                    pagos:                        impresion[1].pagos,
+                    items:                        impresion[2].items,
+                    ordenes:                      impresion[2].ordenes,
+                    pacientes:                    impresion[0].pacientes,
+                    subido: 0
+                })
+                //console.log("!!!!!!!!!!!!!!!!!!!!!!!!", factura)
+                try {
+                    factura.save();
+                    resolve("1")
+                } catch (error) {
+                    resolve("0")
+                }
+            })
+        }
+
+        async function agregarCliente(impresion){
+            //console.log("desde agregar cliente!!!!", impresion)
+            return new Promise((resolve, reject) => {
+                const cliente = clienteModel({       
+                    idCliente: 			impresion[0].id_cliente,
+                    clienteNombre:   	impresion[0].cliente_nombre,
+                    clienteApellido:   	impresion[0].cliente_apellido,
+                    cedula_RIF: 		impresion[0].cedula_RIF,
+                    contacto: 			impresion[0].contacto_persona_convenio,
+                    correo: 			impresion[0].correo,
+                    telefono: 			impresion[0].telefono,
+                    tipoCliente: 		impresion[0].tipo_cliente,
+                    subido: 0
+                })
+    
+                try {
+                    cliente.save();
+                    resolve("1")
+                } catch (error) {
+                    resolve("0")
+                }
+            })
+        }
+
+        async function loopExamenesCultivos(){
+            let busquedaCliente, busquedaFactura, busquedaPaciente, agrupacionPacientes;
+            for (const examen of examenes){
+              /*let examenGet =*/ await getExamenes(examen);
+              //console.log('EL EXAMEN!!', examenGet)
+            }
+            for (const cultivo of cultivos){
+              /*let cultivoGet =*/ await getCultivos(cultivo);
+              //console.log('EL CULTIVOS!!', cultivoGet)
+            }
+            //console.log('LUEGO: ',cultivos);
+            /*let numFactura =*/ await getNumeroFactura();
+            await getTipoPago();
+             //console.log('EL CULTIVOS!!', numFactura)
+             let contItems = 0;
+             for(const item of itemsFinal){
+                 //console.log('EL ITEM', item.item.contador)
+                contItems = contItems + item.item.contador;
+             }
+            impresion.push({
+                cantidad_items: contItems,
+                items: itemsFinal,
+                ordenes: reqFactura[0].ordenes
+            });
+            res.req.headers.connection = 'keep-alive';
+            //console.log("!!!!!!!!!!!!!!!!!!!!!!!!", impresion)
+            //busquedaCliente = await buscarCliente(impresion[0].id_cliente);
+            //busquedaFactura = await buscarFactura(impresion[0].id_factura);
+            busquedaPaciente = await buscarPacientes(impresion[0].id_factura);
+            agrupacionPacientes = await agruparPacientes(busquedaPaciente);
+            let agrupacionPacientesArray = [];
+            agrupacionPacientesArray = Object.values(agrupacionPacientes);
+            //console.log("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP", agrupacionPacientes)
+            impresion[0].pacientes = agrupacionPacientesArray;
+            //console.log("*************************************************************************************", impresion)
+
+            //console.log("WOLOLO", busquedaCliente, busquedaFactura)
+            if(busquedaCliente == null || busquedaCliente.length == 0){
+                let agregarResp;
+                //agregarResp = await agregarCliente(impresion);
+                if(agregarResp == "0"){
+                    //console.log("ERROR EN AGREGAR CLIENTE!!!");
+                }else{
+                    //console.log("EL CLIENTE AGREGO")
+                }
+            }else{
+                //console.log("CLIENTE EXISTENTE")
+            }
+            if(busquedaFactura == null || busquedaFactura.length == 0){
+                //console.log("Paso?")
+                let agregarFacturaResp;
+                //agregarFacturaResp = await agregarFactura(impresion);
+                if(agregarFacturaResp == "0"){
+                    //console.log("ERROR EN AGREGAR CLIENTE!!!");
+                }else{
+                    //console.log("LA FACTURA AGREGO")
+                }
+            }else{
+                //console.log("FACTURA EXISTENTE")
+            }
+            console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", impresion);
+            res.send(impresion)
+           
+        }
+
+        loopExamenesCultivos();
+        
+        //console.log('LUEGO: ', examenesFinal);
+
+        
+    }
 }
 
 facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
@@ -670,7 +1379,7 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
         let myValues = new Array(memory);
         //console.log('MEMORIA DE MEMORY', memory);
         for(let i=0; i<memory; i++){
-            myValues[i] = new Array(7);
+            myValues[i] = new Array(6);
         }
 
         //console.log('LA MEMORY DEL ARRAY MYVALUES', myValues)
@@ -693,8 +1402,7 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
                     myValues[r][2]= pacientesExamenesREQ[i].id_paciente,
                     myValues[r][3]= pacientesExamenesREQ[i].examenes[j].id_examen,
                     myValues[r][4]= null,
-                    myValues[r][5]= pacientesExamenesREQ[i].examenes[j].nombre,
-                    myValues[r][6] = pacientesExamenesREQ[i].examenes[j].precio
+                    myValues[r][5]= pacientesExamenesREQ[i].examenes[j].nombre
                 }else if(key == "id_cultivo"){
                     //console.log('ESTAS ES UN CULTIVO')
                     myValues[r][0]= factura,
@@ -702,14 +1410,13 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
                     myValues[r][2]= pacientesExamenesREQ[i].id_paciente,
                     myValues[r][3]= null,
                     myValues[r][4]= pacientesExamenesREQ[i].examenes[j].id_cultivo,
-                    myValues[r][5]= pacientesExamenesREQ[i].examenes[j].nombre,
-                    myValues[r][6] = pacientesExamenesREQ[i].examenes[j].precio
+                    myValues[r][5]= pacientesExamenesREQ[i].examenes[j].nombre
                 }  
                 r++;
             }
         }
-        //console.log('LOS VALUES', myValues);
-        const sql = 'INSERT INTO tbl_detalle_factura_paciente (id_factura, id_registro_convenio, id_paciente, id_examen, id_cultivo, nombre_especifico, precio) VALUES?';
+        console.log('LOS VALUES', myValues);
+        const sql = 'INSERT INTO tbl_detalle_factura_paciente (id_factura, id_registro_convenio, id_paciente, id_examen, id_cultivo, nombre_especifico) VALUES?';
         connection.query(sql, [myValues], (err, result) => {
             if (err) {
                 console.log('no se pudo a agregar', err)

@@ -133,4 +133,24 @@ clienteCtrl.configCliente = async(req, res) =>{
     }
 }
 
+clienteCtrl.buscarClientePorCedula = async(req, res) =>{
+    const sql = "SELECT * FROM `tbl_cliente` WHERE cedula_RIF = '" + req.body.cedula_RIF+"'";
+   // const sql = "SELECT * FROM `tbl_examen` WHERE id_examen = '" + req.body.id_examen + "'";
+    
+    connection.query(sql, function (err, result, fie) {
+		if (err) {
+			console.log('error en la conexion intente de nuevo', err)
+			res.send('3')
+		}
+        console.log('el result examen: ', result)
+        if(result.length <= 0){
+            console.log('PASO A 0')
+            res.send('0')
+        }else{
+            res.send(result);
+        }
+		
+	})
+};
+
 module.exports = clienteCtrl;

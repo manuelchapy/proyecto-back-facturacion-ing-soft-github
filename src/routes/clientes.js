@@ -8,6 +8,9 @@ router.route('/clientes')
 router.route('/crearYEnviarCliente')
 		.post(ctrlCliente.crearYEnviarCliente)
 
+router.route('/buscarClientePorCedula')
+		.post(ctrlCliente.buscarClientePorCedula)
+
 router.route('/configCliente')
 		.post(ctrlCliente.configCliente)
 

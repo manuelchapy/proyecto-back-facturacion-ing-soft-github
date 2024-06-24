@@ -11,4 +11,10 @@ router.route('/facturas')
 router.route('/crearFacturaOrdenTrabajo')
 		.post(ctrlFacturacion.crearFacturaOrdenTrabajo)
 
+router.route('/ordenesImpresion/:id_factura')
+		.get(ctrlFacturacion.ordenesImpresion)
+
+router.route('/imprimirFactura/:id_factura/:id_tipo_factura')
+		.get(ctrlFacturacion.imprimirFactura)
+
 module.exports = router;
