@@ -172,6 +172,185 @@ facturacionCtrl.ordenesImpresion = async(req, res) =>{
     }
 }
 
+facturacionCtrl.buscarFactura = async(req, res) =>{
+    const sql = "SELECT tbl_factura.id_factura, tbl_factura.id_estado_factura, tbl_factura.anulacion_motivo, tbl_factura.id_usuario_anulacion, date_format(fecha_cancelacion, '%d-%m-%Y %T') AS fecha_cancelacion ,date_format(fecha_creacion_factura, '%d-%m-%Y %T') AS fecha_creacion_factura, date_format(fecha_creacion_orden_trabajo, '%d-%m-%Y %T') AS fecha_creacion_orden_trabajo, tbl_factura.id_cliente, tbl_factura.id_tipo_factura, tbl_factura.id_usuario, tbl_factura.numero_factura, tbl_factura.debe_dolares, tbl_factura.orden_trabajo, tbl_factura.total_bolivares, tbl_factura.total_dolares, tbl_factura.total_pesos, tbl_factura.tasa_bolivar_dia, tbl_factura.IGTF_bolivares, tbl_factura.IGTF_dolares, tbl_factura.IGTF_pesos, tbl_factura.tasa_pesos_dia, tbl_cliente.cliente_nombre, tbl_cliente.cliente_apellido, tbl_cliente.cedula_RIF, tbl_usuario.usuario_nombre, tbl_usuario.usuario_apellido, tbl_cliente.descuento_fijo, tbl_estado_factura.nombre, tbl_tipo_factura.tipo_factura_nombre FROM `tbl_factura` LEFT JOIN tbl_cliente ON tbl_cliente.id_cliente = tbl_factura.id_cliente LEFT JOIN tbl_usuario ON tbl_usuario.id_usuario = tbl_factura.id_usuario LEFT JOIN tbl_estado_factura ON tbl_estado_factura.id_estado_factura = tbl_factura.id_estado_factura LEFT JOIN tbl_tipo_factura ON tbl_factura.id_tipo_factura = tbl_tipo_factura.id_tipo_factura WHERE tbl_factura.id_factura='" +req.body.id_factura+"'";
+
+    let numFact;
+    connection.query(sql, async function (err, result, fields) {
+        if (err) {
+            console.log('ERROR en CheckTemplate', err);
+            res.send('3');
+        }
+        if(result){
+            //console.log("555555555555", result)
+            //res.send(result)
+            let detallesFiscales = result[0];
+            let usuarioAnulacion;
+            usuarioAnulacion = await buscarUsuarioAnulacion(usuarioAnulacion, detallesFiscales.id_factura)
+            //console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!", usuarioAnulacion)
+            detallesFiscales.usuario_nombre_anulacion = usuarioAnulacion.usuario_nombre,
+            detallesFiscales.usuario_apellido_anulacion = usuarioAnulacion.usuario_apellido,
+            detallesFiscales.usuario_cedula_anulacion = usuarioAnulacion.usuario_cedula
+            buscarExamenesPacientes(detallesFiscales)
+        }
+    });
+
+    async function buscarUsuarioAnulacion(usuarioAnulacion, idFactura){
+        return new Promise((resolve, reject) => {
+            const sql = "SELECT tbl_factura.id_usuario_anulacion, tbl_usuario.usuario_nombre, tbl_usuario.usuario_apellido, tbl_usuario.usuario_cedula FROM tbl_factura LEFT JOIN tbl_usuario ON tbl_usuario.id_usuario = tbl_factura.id_usuario_anulacion WHERE tbl_factura.id_factura = '" +idFactura+"'";
+            connection.query(sql, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate', err);
+                    res.send('3');
+                }
+                if(result){
+                    usuarioAnulacion = result[0];
+                    resolve(usuarioAnulacion);
+                }
+            })
+        });
+    }
+
+    function buscarExamenesPacientes(detallesFiscales){
+        const sql = "SELECT tbl_detalle_factura_paciente.id_examen, id_detalle_factura_paciente, tbl_examen.examen_nombre, tbl_examen.examen_precio, tbl_examen.examen_codigo, tbl_paciente.paciente_nombre, tbl_paciente.paciente_apellido, tbl_paciente.paciente_cedula FROM tbl_detalle_factura_paciente INNER JOIN `tbl_examen` ON tbl_examen.id_examen = tbl_detalle_factura_paciente.id_examen LEFT JOIN tbl_paciente ON tbl_detalle_factura_paciente.id_paciente = tbl_paciente.id_paciente WHERE tbl_detalle_factura_paciente.id_factura = '" +req.body.id_factura+"'";
+        connection.query(sql, function (err, result, fields) {
+            if (err) {
+                console.log('ERROR en CheckTemplate', err);
+                res.send('3');
+            }
+            if(result){
+            /*
+                //res.send(result)
+                //let detallesFiscales = result[0];
+                let sumadorDeExamenes = 0;
+                //console.log('EL LENGTH', result.length)
+                for(let i=0; i<result.length; i++){
+                     sumadorDeExamenes = 0
+                      //console.log("la I:",i);
+                    for(let j=0; j<result.length; j++){
+                        //console.log(j);
+                        //console.log('ANTES DE J: ',sumadorDeExamenes);
+                        if(result[j].examen_nombre != null && result[j].id_examen != null){
+                            if(result[i].examen_nombre == result[j].examen_nombre){
+                                sumadorDeExamenes++;
+                                if(sumadorDeExamenes >= 2){
+                                    //console.log('ENTRO: ',sumadorDeExamenes);
+                                    //console.log(result[j])
+                                    result[j].examen_nombre = null;
+                                    result[j].id_examen = null;
+                                    result[j].id_detalle_factura_paciente = null;
+                                    //result.splice(j);
+                                } 
+                            }
+                            if(j == result.length-1){
+                                //console.log(j, result.length-1)
+                                result[i].cantidad = sumadorDeExamenes;
+                            }
+                        }
+                    }
+                    //console.log('DESPUES DE J: ',sumadorDeExamenes);
+                }
+                */
+
+                //let examenes = result.filter((item) => item.id_examen != null);
+                let examenes = result;
+                //res.send(examenes);
+                buscarCultivosPacientes(detallesFiscales, examenes);
+            }
+        });
+    }
+
+    function buscarCultivosPacientes(detallesFiscales, examenes){
+        const sql = "SELECT tbl_detalle_factura_paciente.id_cultivo, tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_cultivo.cultivo_nombre, tbl_cultivo.cultivo_codigo, tbl_cultivo.cultivo_precio, tbl_paciente.paciente_nombre, tbl_paciente.paciente_apellido, tbl_paciente.paciente_cedula FROM tbl_detalle_factura_paciente INNER JOIN `tbl_cultivo` ON tbl_cultivo.id_cultivo = tbl_detalle_factura_paciente.id_cultivo LEFT JOIN tbl_paciente ON tbl_paciente.id_paciente = tbl_detalle_factura_paciente.id_paciente WHERE tbl_detalle_factura_paciente.id_factura = '" +req.body.id_factura+"'";
+        connection.query(sql, function (err, result, fields) {
+            if (err) {
+                console.log('ERROR en CheckTemplate', err);
+                res.send('3');
+            }
+            if(result){
+            /*
+                //res.send(result)
+                //let detallesFiscales = result[0];
+                let sumadorDeCultivos = 0;
+                //console.log('EL LENGTH', result.length)
+                for(let i=0; i<result.length; i++){
+                     sumadorDeCultivos = 0
+                      //console.log("la I:",i);
+                    for(let j=0; j<result.length; j++){
+                        //console.log(j);
+                        //console.log('ANTES DE J: ',sumadorDeExamenes);
+                        if(result[j].cultivo_nombre != null && result[j].id_cultivo != null){
+                            if(result[i].cultivo_nombre == result[j].cultivo_nombre){
+                                sumadorDeCultivos++;
+                                if(sumadorDeCultivos >= 2){
+                                    //console.log('ENTRO: ',sumadorDeExamenes);
+                                    //console.log(result[j])
+                                    result[j].cultivo_nombre = null;
+                                    result[j].id_cultivo = null;
+                                    result[j].id_detalle_factura_paciente;
+                                    //result.splice(j);
+                                } 
+                            }
+                            if(j == result.length-1){
+                                //console.log(j, result.length-1)
+                                result[i].cantidad = sumadorDeCultivos;
+                            }
+                        }
+                    }
+                    //console.log('DESPUES DE J: ',sumadorDeExamenes);
+                }
+                let cultivos = result.filter((item) => item.id_cultivo != null);
+                */
+               let cultivos = result;
+                //res.send(cultivos);
+                buscarRegistroDePagos(detallesFiscales, examenes, cultivos);
+            }
+        });
+    }
+
+    function buscarRegistroDePagos(detallesFiscales, examenes, cultivos){
+        const sql = "SELECT tbl_registro_pago.id_registro_pago, tbl_registro_pago.tipo_registro, tbl_registro_pago.igtf_monto, tbl_registro_pago.igtf_pago, tbl_registro_pago.tipo_registro, tbl_registro_pago.igtf_pago, tbl_registro_pago.id_registro_divisa, tbl_registro_pago.id_tipo_pago, tbl_registro_pago.id_banco, tbl_registro_pago.numero_referencia, tbl_registro_pago.monto, DATE_FORMAT(fecha_creacion, '%d-%m-%Y') AS fecha, tbl_tipo_pago.tipo_pago_nombre, tbl_banco.banco_nombre, tbl_registro_divisa.tasa_actual, tbl_divisa.id_divisa, tbl_divisa.divisa_nombre FROM `tbl_registro_pago` LEFT JOIN `tbl_tipo_pago` ON tbl_tipo_pago.id_tipo_pago = tbl_registro_pago.id_tipo_pago LEFT JOIN `tbl_banco` ON tbl_banco.id_banco = tbl_registro_pago.id_banco LEFT JOIN `tbl_registro_divisa` ON tbl_registro_pago.id_registro_divisa = tbl_registro_divisa.id_registro_divisa LEFT JOIN `tbl_divisa` ON tbl_divisa.id_divisa = tbl_registro_divisa.id_divisa WHERE tbl_registro_pago.id_factura = '" +req.body.id_factura+"'";
+        connection.query(sql, function (err, result, fields) {
+            if (err) {
+                console.log('ERROR en CheckTemplate', err);
+                res.send('3');
+            }
+            if(result){
+                //console.log("/////////////////////////////", result, req.body.id_factura)
+                /////////////////////////////////////PARA AGREGAR EL ITEM AGREGADO/////////////////////////////
+                for(const item of result){
+                    item.agregado = "1",
+                    item.accion = 2
+                }
+                let factura = {};
+                factura.detallesFiscales = detallesFiscales;
+                factura.examenes = examenes;
+                factura.cultivos = cultivos;
+                factura.registroDePagos = result;
+                //res.send(factura);
+                buscarOrdenes(factura)
+            }
+        });
+    }
+
+    function buscarOrdenes(factura){    
+        return new Promise((resolve, reject) => {
+            let sql = "SELECT tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_detalle_factura_paciente.id_factura, tbl_detalle_factura_paciente.id_registro_convenio, tbl_detalle_orden.id_orden, tbl_orden.numero_orden FROM tbl_detalle_factura_paciente LEFT JOIN tbl_detalle_orden ON tbl_detalle_orden.id_detalle_factura_paciente = tbl_detalle_factura_paciente.id_detalle_factura_paciente LEFT JOIN tbl_orden ON tbl_orden.id_orden = tbl_detalle_orden.id_orden WHERE tbl_detalle_factura_paciente.id_factura = '" +factura.detallesFiscales.id_factura+ "' GROUP BY tbl_orden.id_orden";
+            connection.query(sql, function (err, result, fields) {
+                if (err) {
+                    console.log('ERROR en CheckTemplate', err);
+                    res.send('3');
+                }
+                if(result){
+                    factura.ordenes = result;
+                    //resolve(result)
+                    res.send(factura)
+                }
+            });
+        })
+    }
+}
+
 facturacionCtrl.imprimirFactura = async(req, res) =>{
     const sql = "SELECT tbl_detalle_factura_paciente.id_detalle_factura_paciente, tbl_detalle_factura_paciente.id_paciente, tbl_detalle_factura_paciente.id_examen, tbl_detalle_factura_paciente.id_cultivo, tbl_detalle_orden.id_orden, tbl_orden.numero_orden FROM `tbl_detalle_factura_paciente`  INNER JOIN `tbl_detalle_orden` ON tbl_detalle_orden.id_detalle_factura_paciente = tbl_detalle_factura_paciente.id_detalle_factura_paciente INNER JOIN tbl_orden ON tbl_orden.id_orden = tbl_detalle_orden.id_orden WHERE tbl_detalle_factura_paciente.id_factura='" +req.params.id_factura+"'";
     connection.query(sql, function (err, result, fields) {

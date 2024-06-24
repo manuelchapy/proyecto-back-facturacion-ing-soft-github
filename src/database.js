@@ -9,7 +9,6 @@ const connection = mysql.createConnection({
 	password: ''
 });
 */
-
 const connection = mysql.createConnection({
 	host: '74.208.147.248',
 	database: 'db_provida',

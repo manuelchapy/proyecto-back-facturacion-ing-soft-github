@@ -17,4 +17,7 @@ router.route('/ordenesImpresion/:id_factura')
 router.route('/imprimirFactura/:id_factura/:id_tipo_factura')
 		.get(ctrlFacturacion.imprimirFactura)
 
+router.route('/buscarFactura')
+		.post(ctrlFacturacion.buscarFactura)
+
 module.exports = router;
