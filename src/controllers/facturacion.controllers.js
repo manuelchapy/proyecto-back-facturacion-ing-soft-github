@@ -1889,12 +1889,13 @@ facturacionCtrl.crearFacturaOrdenTrabajo = async(req, res) =>{
             ipDef = ipNormal[3];
             ipServer = getServerIp()
             let ipUso = `http://${ipServer}:${3000}/ordenesImpresion/`+factura
+            let ipUsoHeroku = `https://api-modulo-fact-ing-soft-603fe31e429d.herokuapp.com/ordenesImpresion/`+factura
             console.log("------------------", ipServer)
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", ipSocket);
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", ipNormal);
             //console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", req);
                     //http://localhost:3000/ordenesImpresion
-            axios.get(ipUso)
+            axios.get(ipUsoHeroku)
             .then(function (response) {
                 imprimirFacturaOrdenes(response.data)
             })
